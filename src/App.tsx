@@ -3,34 +3,60 @@
 import React, { useState, useEffect } from 'react';
 import { UserWarning } from './UserWarning';
 import { USER_ID } from './api/todos';
+import classNames from 'classnames';
+import { ErrorNotification } from './ErrorNotification';
 
 import { getTodos } from '../src/api/todos';
 import { Todo } from '../src/types/Todo';
 
 export const App: React.FC = () => {
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isErrorVisible, setIsErrorVisible] = useState(true);
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
 
+  const handleError = (errorType: string) => {
+    switch (errorType) {
+      case 'load':
+        setError('Unable to load todos');
+        break;
+      case 'add':
+        setError('Unable to add a todo');
+        break;
+      case 'delete':
+        setError('Unable to delete a todo');
+        break;
+      case 'update':
+        setError('Unable to update a todo');
+        break;
+      default:
+        setError('An unknown error occured');
+    }
+    setIsErrorVisible(true);
+  };
+
   useEffect(() => {
     const loadTodos = async () => {
       try {
-        setIsLoading(true);
         const todosData = await getTodos();
         setTodos(todosData);
         setError(null);
       } catch (err) {
-        setError('Unable to load todos');
-        console.error('Unable to load todos', err);
-      } finally {
-        setIsLoading(false);
+        handleError('load');
       }
     };
 
     loadTodos();
   }, []);
+
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
 
   if (!USER_ID) {
     return <UserWarning />;
@@ -42,9 +68,10 @@ export const App: React.FC = () => {
     return true;
   });
 
+  const activeTodosCount = todos.filter(todo => !todo.completed).length;
+
   return (
     <div className="todoapp">
-      {error && <div className='error' data-cy='ErrorNotification'>{error}</div>}
       <h1 className="todoapp__title">todos</h1>
 
       <div className="todoapp__content">
@@ -70,7 +97,7 @@ export const App: React.FC = () => {
         <section className="todoapp__main" data-cy="TodoList">
 
           {filteredTodos.map(todo => (
-          <div data-cy="Todo" key={todo.id} className={`todo ${todo.completed ? 'completed' : ''}`}>
+          <div data-cy="Todo" key={todo.id} className={classNames('todo', { completed: todo.completed })}>
             <label className="todo__status-label">
               <input
                 data-cy="TodoStatus"
@@ -99,11 +126,11 @@ export const App: React.FC = () => {
         </section>
 
         {/* Hide the footer if there are no todos */}
-        {filteredTodos.length > 0 && (
+        {todos.length > 0 && (
 
         <footer className="todoapp__footer" data-cy="Footer">
           <span className="todo-count" data-cy="TodosCounter">
-            {filteredTodos.filter(todo => !todo.completed).length} items left
+            {activeTodosCount} items left
           </span>
 
           {/* Active link should have the 'selected' class */}
@@ -147,25 +174,13 @@ export const App: React.FC = () => {
         </footer>
         )}
       </div>
-
-      {/* DON'T use conditional rendering to hide the notification */}
-      {/* Add the 'hidden' class to hide the message smoothly */}
-      <div
-        data-cy="ErrorNotification"
-        className={`notification is-danger is-light has-text-weight-normal ${!isErrorVisible || !error ? 'hidden' : ''}`}
-      >
-        <button data-cy="HideErrorButton" type="button" className="delete" onClick={() => setIsErrorVisible(false)}/>
-        {/* show only one message at a time */}
-        Unable to load todos
-        <br />
-        Title should not be empty
-        <br />
-        Unable to add a todo
-        <br />
-        Unable to delete a todo
-        <br />
-        Unable to update a todo
-      </div>
+      <ErrorNotification
+        error={isErrorVisible ? error : null}
+        onClose={() => {
+          setIsErrorVisible(false);
+          setError(null);
+        }}
+      />
     </div>
   );
 };
