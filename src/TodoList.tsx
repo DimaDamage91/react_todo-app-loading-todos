@@ -5,7 +5,7 @@ import { Todo } from './types/Todo';
 interface TodoListProps {
   todos: Todo[];
   setTodos: React.Dispatch<React.SetStateAction<Todo[]>>;
-  filter: 'all' | 'active' | 'completed';
+  filter: FilterType;
 }
 
 export const TodoList: React.FC<TodoListProps> = ({ todos, filter }) => {
